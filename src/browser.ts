@@ -160,11 +160,14 @@ export class BrowserManager {
   }
 
   /**
-   * Get the default userDataDir path
+   * Get the default userDataDir path, scoped by session name.
+   * Default session "main" → ~/tmp/agent-browser/main
+   * Custom session "site1" → ~/tmp/agent-browser/site1
    */
   private getDefaultUserDataDir(): string {
     const home = process.env.HOME || process.env.USERPROFILE || os.homedir();
-    return path.join(home, 'tmp', 'agent-browser');
+    const session = process.env.AGENT_BROWSER_SESSION || 'main';
+    return path.join(home, 'tmp', 'agent-browser', session);
   }
 
   /**

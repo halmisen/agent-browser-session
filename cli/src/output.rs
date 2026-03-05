@@ -1205,7 +1205,7 @@ Note: By default, agent-browser uses your system Chrome for better compatibility
 with existing browser profiles. Use --bundled to use the bundled Chrome for Testing.
 
 Environment:
-  AGENT_BROWSER_SESSION          Session name (default: "default")
+  AGENT_BROWSER_SESSION          Session name (default: "main")
   AGENT_BROWSER_EXECUTABLE_PATH  Custom browser executable path
   AGENT_BROWSER_STREAM_PORT      Enable WebSocket streaming on port (e.g., 9223)
 

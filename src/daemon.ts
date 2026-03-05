@@ -11,7 +11,7 @@ import { StreamServer } from './stream-server.js';
 const isWindows = process.platform === 'win32';
 
 // Session support - each session gets its own socket/pid
-let currentSession = process.env.AGENT_BROWSER_SESSION || 'default';
+let currentSession = process.env.AGENT_BROWSER_SESSION || 'main';
 
 /**
  * Get the base directory for socket/pid files.
