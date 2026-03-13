@@ -17,8 +17,8 @@ A fork of [vercel-labs/agent-browser](https://github.com/vercel-labs/agent-brows
 ## Installation
 
 ```bash
-git clone https://github.com/BUNotesAI/agent-browser-userdata
-cd agent-browser-userdata
+git clone https://github.com/BUNotesAI/agent-browser-session
+cd agent-browser-session
 pnpm install
 pnpm build
 pnpm build:native   # Requires Rust (https://rustup.rs)
