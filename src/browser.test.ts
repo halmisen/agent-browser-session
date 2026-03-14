@@ -697,6 +697,21 @@ describe('BrowserManager', () => {
       expect(tabs.some((t) => t.name === 'test-tab-close')).toBe(false);
     });
 
+    it('should get snapshot for a specific named tab', async () => {
+      const bindingA = await browser.getOrCreateTab('test-snap-a');
+      await bindingA.page.goto('data:text/html,<button>ClickA</button>');
+      const bindingB = await browser.getOrCreateTab('test-snap-b');
+      await bindingB.page.goto('data:text/html,<button>ClickB</button>');
+
+      const snapA = await browser.getSnapshotForPage(bindingA.page, {});
+      const snapB = await browser.getSnapshotForPage(bindingB.page, {});
+
+      expect(snapA.tree).toContain('ClickA');
+      expect(snapA.tree).not.toContain('ClickB');
+      expect(snapB.tree).toContain('ClickB');
+      expect(snapB.tree).not.toContain('ClickA');
+    });
+
     it('should clean up binding when page is closed externally', async () => {
       const binding = await browser.getOrCreateTab('test-tab-external');
       const page = binding.page;

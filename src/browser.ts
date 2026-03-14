@@ -191,6 +191,22 @@ export class BrowserManager {
   }
 
   /**
+   * Get enhanced snapshot for a specific page (for tabname isolation).
+   * Does NOT update global refMap/lastSnapshot — caller manages per-tab state.
+   */
+  async getSnapshotForPage(
+    page: Page,
+    options?: {
+      interactive?: boolean;
+      maxDepth?: number;
+      compact?: boolean;
+      selector?: string;
+    }
+  ): Promise<EnhancedSnapshot> {
+    return await getEnhancedSnapshot(page, options);
+  }
+
+  /**
    * Get enhanced snapshot with refs and cache the ref map
    */
   async getSnapshot(options?: {
@@ -200,7 +216,7 @@ export class BrowserManager {
     selector?: string;
   }): Promise<EnhancedSnapshot> {
     const page = this.getPage();
-    const snapshot = await getEnhancedSnapshot(page, options);
+    const snapshot = await this.getSnapshotForPage(page, options);
     this.refMap = snapshot.refs;
     this.lastSnapshot = snapshot.tree;
     return snapshot;
