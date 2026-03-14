@@ -904,6 +904,7 @@ mod tests {
             extensions: Vec::new(),
             cdp: None,
             channel: None,
+            tab_name: None,
         }
     }
 

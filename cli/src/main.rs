@@ -98,6 +98,12 @@ fn main() {
     let clean = clean_args(&args);
 
     let has_help = args.iter().any(|a| a == "--help" || a == "-h");
+    let has_version = args.iter().any(|a| a == "--version" || a == "-V");
+
+    if has_version {
+        println!("agent-browser-session {}", env!("CARGO_PKG_VERSION"));
+        return;
+    }
 
     if clean.is_empty() {
         print_help();
@@ -127,7 +133,7 @@ fn main() {
         return;
     }
 
-    let cmd = match parse_command(&clean, &flags) {
+    let mut cmd = match parse_command(&clean, &flags) {
         Ok(c) => c,
         Err(e) => {
             if flags.json {
@@ -147,6 +153,10 @@ fn main() {
             exit(1);
         }
     };
+
+    if let Some(ref tab_name) = flags.tab_name {
+        cmd["tabName"] = json!(tab_name);
+    }
 
     let daemon_result = match ensure_daemon(&flags.session, flags.headed, flags.executable_path.as_deref(), &flags.extensions, flags.channel.as_deref()) {
         Ok(result) => result,
@@ -206,11 +216,14 @@ fn main() {
             }
         };
 
-        let launch_cmd = json!({
+        let mut launch_cmd = json!({
             "id": gen_id(),
             "action": "launch",
             "cdpPort": cdp_port
         });
+        if let Some(ref tab_name) = flags.tab_name {
+            launch_cmd["tabName"] = json!(tab_name);
+        }
 
         let err = match send_command(launch_cmd, &flags.session) {
             Ok(resp) if resp.success => None,
@@ -228,12 +241,13 @@ fn main() {
         }
     }
 
-    // Launch headed browser if --headed flag is set (without CDP)
-    if flags.headed && flags.cdp.is_none() {
+    // Send launch command with headed/headless mode (without CDP)
+    if flags.cdp.is_none() {
+        let headless = !flags.headed;
         let mut launch_cmd = json!({
             "id": gen_id(),
             "action": "launch",
-            "headless": false
+            "headless": headless
         });
         if let Some(ch) = &flags.channel {
             launch_cmd["channel"] = json!(ch);
@@ -241,9 +255,12 @@ fn main() {
         if let Some(path) = &flags.executable_path {
             launch_cmd["executablePath"] = json!(path);
         }
+        if let Some(ref tab_name) = flags.tab_name {
+            launch_cmd["tabName"] = json!(tab_name);
+        }
         if let Err(e) = send_command(launch_cmd, &flags.session) {
             if !flags.json {
-                eprintln!("\x1b[33m⚠\x1b[0m Could not launch headed browser: {}", e);
+                eprintln!("\x1b[33m⚠\x1b[0m Could not launch browser: {}", e);
             }
         }
     }

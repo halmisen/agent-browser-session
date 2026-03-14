@@ -11,6 +11,7 @@ pub struct Flags {
     pub cdp: Option<String>,
     pub extensions: Vec<String>,
     pub channel: Option<String>,
+    pub tab_name: Option<String>,
 }
 
 pub fn parse_flags(args: &[String]) -> Flags {
@@ -19,10 +20,15 @@ pub fn parse_flags(args: &[String]) -> Flags {
         .map(|s| s.split(',').map(|p| p.trim().to_string()).filter(|p| !p.is_empty()).collect::<Vec<_>>())
         .unwrap_or_default();
 
+    let headed_env = env::var("AGENT_BROWSER_HEADED")
+        .ok()
+        .map(|v| v != "false" && v != "0")
+        .unwrap_or(true);
+
     let mut flags = Flags {
         json: false,
         full: false,
-        headed: false,
+        headed: headed_env,
         debug: false,
         session: env::var("AGENT_BROWSER_SESSION").unwrap_or_else(|_| "main".to_string()),
         headers: None,
@@ -30,6 +36,7 @@ pub fn parse_flags(args: &[String]) -> Flags {
         cdp: None,
         extensions: extensions_env,
         channel: env::var("AGENT_BROWSER_CHANNEL").ok(),
+        tab_name: env::var("AGENT_BROWSER_TABNAME").ok(),
     };
 
     let mut i = 0;
@@ -37,7 +44,18 @@ pub fn parse_flags(args: &[String]) -> Flags {
         match args[i].as_str() {
             "--json" => flags.json = true,
             "--full" | "-f" => flags.full = true,
-            "--headed" => flags.headed = true,
+            "--headed" => {
+                // --headed (default true), --headed true, --headed false
+                if let Some(next) = args.get(i + 1) {
+                    match next.as_str() {
+                        "false" => { flags.headed = false; i += 1; }
+                        "true" => { flags.headed = true; i += 1; }
+                        _ => flags.headed = true, // --headed without value
+                    }
+                } else {
+                    flags.headed = true;
+                }
+            }
             "--debug" => flags.debug = true,
             "--session" => {
                 if let Some(s) = args.get(i + 1) {
@@ -75,6 +93,12 @@ pub fn parse_flags(args: &[String]) -> Flags {
                     i += 1;
                 }
             }
+            "--tabname" => {
+                if let Some(name) = args.get(i + 1) {
+                    flags.tab_name = Some(name.clone());
+                    i += 1;
+                }
+            }
             "--bundled" => {
                 // Use Patchright's bundled Chrome for Testing instead of system Chrome
                 flags.channel = Some("bundled".to_string());
@@ -91,24 +115,41 @@ pub fn clean_args(args: &[String]) -> Vec<String> {
     let mut skip_next = false;
 
     // Global flags that should be stripped from command args
-    const GLOBAL_FLAGS: &[&str] = &["--json", "--full", "--headed", "--debug", "--bundled"];
+    const GLOBAL_FLAGS: &[&str] = &["--json", "--full", "--debug", "--bundled"];
     // Global flags that take a value (need to skip the next arg too)
-    const GLOBAL_FLAGS_WITH_VALUE: &[&str] = &["--session", "--headers", "--executable-path", "--cdp", "--extension", "--channel"];
+    const GLOBAL_FLAGS_WITH_VALUE: &[&str] = &["--session", "--headers", "--executable-path", "--cdp", "--extension", "--channel", "--tabname"];
 
-    for arg in args.iter() {
+    let mut i = 0;
+    while i < args.len() {
+        let arg = &args[i];
         if skip_next {
             skip_next = false;
+            i += 1;
             continue;
         }
         if GLOBAL_FLAGS_WITH_VALUE.contains(&arg.as_str()) {
             skip_next = true;
+            i += 1;
+            continue;
+        }
+        // --headed with optional true/false value
+        if arg == "--headed" {
+            if let Some(next) = args.get(i + 1) {
+                if next == "true" || next == "false" {
+                    i += 2; // skip --headed and its value
+                    continue;
+                }
+            }
+            i += 1; // skip --headed alone
             continue;
         }
         // Only strip known global flags, not command-specific flags
         if GLOBAL_FLAGS.contains(&arg.as_str()) || arg == "-f" {
+            i += 1;
             continue;
         }
         result.push(arg.clone());
+        i += 1;
     }
     result
 }

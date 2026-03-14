@@ -1194,19 +1194,23 @@ Options:
   --executable-path <path>   Custom browser executable (or AGENT_BROWSER_EXECUTABLE_PATH)
   --extension <path>         Load browser extensions (repeatable).
   --channel <name>           Browser channel (chrome, msedge, chromium)
+  --tabname <name>           Named tab for client isolation (multiple agents per session)
   --bundled                  Use bundled Chrome for Testing instead of system Chrome
   --json                     JSON output
   --full, -f                 Full page screenshot
-  --headed                   Show browser window (not headless)
+  --headed [true|false]      Show browser window (default: true, use --headed false for headless)
   --cdp <port>               Connect via CDP (Chrome DevTools Protocol)
   --debug                    Debug output
+  --version, -V              Show version
 
 Note: By default, agent-browser-session uses your system Chrome for better compatibility
 with existing browser profiles. Use --bundled to use the bundled Chrome for Testing.
 
 Environment:
   AGENT_BROWSER_SESSION          Session name (default: "main")
+  AGENT_BROWSER_HEADED           Show browser window (default: true, set "false" for headless)
   AGENT_BROWSER_EXECUTABLE_PATH  Custom browser executable path
+  AGENT_BROWSER_TABNAME          Named tab (or --tabname)
   AGENT_BROWSER_STREAM_PORT      Enable WebSocket streaming on port (e.g., 9223)
 
 Examples:
