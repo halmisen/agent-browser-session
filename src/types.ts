@@ -4,6 +4,7 @@ import type { Page, Browser, BrowserContext } from './browser-engine.js';
 export interface BaseCommand {
   id: string;
   action: string;
+  tabName?: string;
 }
 
 // Action-specific command types

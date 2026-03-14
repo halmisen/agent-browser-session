@@ -1005,6 +1005,24 @@ describe('parseCommand', () => {
     });
   });
 
+  describe('tabName', () => {
+    it('should parse command with tabName', () => {
+      const result = parseCommand(cmd({ id: '1', action: 'snapshot', tabName: 'reddit' }));
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect((result.command as any).tabName).toBe('reddit');
+      }
+    });
+
+    it('should parse command without tabName', () => {
+      const result = parseCommand(cmd({ id: '1', action: 'snapshot' }));
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect((result.command as any).tabName).toBeUndefined();
+      }
+    });
+  });
+
   describe('invalid commands', () => {
     it('should reject unknown action', () => {
       const result = parseCommand(cmd({ id: '1', action: 'unknown' }));

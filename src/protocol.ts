@@ -5,6 +5,7 @@ import type { Command, Response } from './types.js';
 const baseCommandSchema = z.object({
   id: z.string(),
   action: z.string(),
+  tabName: z.string().optional(),
 });
 
 // Individual action schemas
