@@ -132,34 +132,17 @@ fn get_port_for_session(session: &str) -> u16 {
     49152 + ((hash.abs() as u16) % 16383)
 }
 
-#[cfg(unix)]
-fn is_daemon_running(session: &str) -> bool {
-    let pid_path = get_pid_path(session);
-    if !pid_path.exists() {
-        return false;
+/// Clean up stale PID and socket files for a session.
+fn cleanup_stale_files(session: &str) {
+    let _ = fs::remove_file(get_pid_path(session));
+    #[cfg(unix)]
+    {
+        let _ = fs::remove_file(get_socket_path(session));
     }
-    if let Ok(pid_str) = fs::read_to_string(&pid_path) {
-        if let Ok(pid) = pid_str.trim().parse::<i32>() {
-            unsafe {
-                return libc::kill(pid, 0) == 0;
-            }
-        }
+    #[cfg(windows)]
+    {
+        let _ = fs::remove_file(get_port_path(session));
     }
-    false
-}
-
-#[cfg(windows)]
-fn is_daemon_running(session: &str) -> bool {
-    let pid_path = get_pid_path(session);
-    if !pid_path.exists() {
-        return false;
-    }
-    let port = get_port_for_session(session);
-    TcpStream::connect_timeout(
-        &format!("127.0.0.1:{}", port).parse().unwrap(),
-        Duration::from_millis(100),
-    )
-    .is_ok()
 }
 
 fn daemon_ready(session: &str) -> bool {
@@ -202,11 +185,16 @@ pub fn ensure_daemon(
     extensions: &[String],
     channel: Option<&str>,
 ) -> Result<DaemonResult, String> {
-    if is_daemon_running(session) && daemon_ready(session) {
+    // Socket-only detection: if we can connect, daemon is alive.
+    // More reliable than PID check (no PID reuse false positives).
+    if daemon_ready(session) {
         return Ok(DaemonResult {
             already_running: true,
         });
     }
+
+    // Can't connect → clean up any stale files from dead daemon
+    cleanup_stale_files(session);
 
     // Ensure socket directory exists
     let socket_dir = get_socket_dir();
