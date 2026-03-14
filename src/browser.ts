@@ -17,6 +17,15 @@ import * as os from 'os';
 import { stealthScripts } from './stealth.js';
 import type { LaunchCommand } from './types.js';
 import { type RefMap, type EnhancedSnapshot, getEnhancedSnapshot, parseRef } from './snapshot.js';
+import { getProfileDir } from './paths.js';
+
+export interface TabBinding {
+  page: Page;
+  cdpSession: CDPSession | null;
+  refMap: RefMap;
+  lastSnapshot: string;
+  activeFrame: Frame | null;
+}
 
 // Screencast frame data from CDP
 export interface ScreencastFrame {
@@ -90,6 +99,9 @@ export class BrowserManager {
   private frameCallback: ((frame: ScreencastFrame) => void) | null = null;
   private screencastFrameHandler: ((params: any) => void) | null = null;
 
+  // Per-tab isolation: each named tab gets its own state
+  private tabBindings: Map<string, TabBinding> = new Map();
+
   // Rate limiting: delay before each navigation (in ms)
   // Default 5 seconds to be server-friendly during testing
   private navigationDelay: number = 5000;
@@ -150,6 +162,7 @@ export class BrowserManager {
     this.lastSnapshot = '';
     this.cdpSession = null;
     this.screencastActive = false;
+    this.tabBindings.clear();
   }
 
   /**
@@ -160,14 +173,14 @@ export class BrowserManager {
   }
 
   /**
-   * Get the default userDataDir path, scoped by session name.
-   * Default session "main" → ~/tmp/agent-browser/main
-   * Custom session "site1" → ~/tmp/agent-browser/site1
+   * Get the default userDataDir path, scoped by session name and browser mode.
+   * Headed session "main"   → ~/.agent-browser/headed-profile/main
+   * Headless session "main" → ~/.agent-browser/headless-profile/main
    */
-  private getDefaultUserDataDir(): string {
-    const home = process.env.HOME || process.env.USERPROFILE || os.homedir();
+  private getDefaultUserDataDir(headless: boolean = false): string {
     const session = process.env.AGENT_BROWSER_SESSION || 'main';
-    return path.join(home, 'tmp', 'agent-browser', session);
+    const mode = headless ? 'headless' : 'headed';
+    return getProfileDir(session, mode);
   }
 
   /**
@@ -754,8 +767,13 @@ export class BrowserManager {
     const launcher = chromium;
     const viewport = options.viewport ?? { width: 1280, height: 720 };
 
-    // Resolve userDataDir - use default if not provided
-    const userDataDir = options.userDataDir ?? this.getDefaultUserDataDir();
+    // Resolve headless mode: default headed, allow explicit override
+    // Test mode (NODE_ENV=test) always allows headless for CI/CD
+    const isTestMode = process.env.NODE_ENV === 'test';
+    const headless = isTestMode ? (options.headless ?? true) : (options.headless ?? false);
+
+    // Resolve userDataDir - use default if not provided, scoped by headed/headless
+    const userDataDir = options.userDataDir ?? this.getDefaultUserDataDir(headless);
 
     // Ensure directory exists (mkdir -p)
     await this.ensureDirectoryExists(userDataDir);
@@ -849,13 +867,11 @@ export class BrowserManager {
       this.isPersistentContext = true;
     } else {
       // Regular mode: use launchPersistentContext for state persistence
-      // Force headed mode to maintain consistent browser fingerprint
-      // and avoid Google/OAuth blocking automation detection
-      // Allow headless in test mode (NODE_ENV=test) for CI/CD
-      const forceHeaded = process.env.NODE_ENV !== 'test';
+      // Headed/headless profiles are physically isolated to prevent
+      // headless mode from polluting headed auth data
       context = await launchWithRetry(() =>
         launcher.launchPersistentContext(userDataDir, {
-          headless: forceHeaded ? false : (options.headless ?? true),
+          headless,
           executablePath: executablePath,
           channel: executablePath ? undefined : effectiveChannel,
           viewport,
@@ -1308,6 +1324,153 @@ export class BrowserManager {
   }
 
   /**
+   * Get or create a named tab binding.
+   * If the binding exists and the page is still open, return it.
+   * Otherwise create a new page in the current context.
+   */
+  async getOrCreateTab(tabName: string): Promise<TabBinding> {
+    const existing = this.tabBindings.get(tabName);
+    if (existing && !existing.page.isClosed()) {
+      return existing;
+    }
+
+    // Remove stale binding if page was closed
+    if (existing) {
+      this.tabBindings.delete(tabName);
+    }
+
+    const context = this.persistentContext ?? this.contexts[0];
+    if (!context) {
+      throw new Error('Browser not launched. Call launch first.');
+    }
+
+    const page = await context.newPage();
+
+    // Backward compat: track in the shared pages array
+    if (!this.pages.includes(page)) {
+      this.pages.push(page);
+      this.setupPageTracking(page);
+    }
+
+    const binding: TabBinding = {
+      page,
+      cdpSession: null,
+      refMap: {},
+      lastSnapshot: '',
+      activeFrame: null,
+    };
+
+    // Auto-cleanup when the page is closed externally
+    page.on('close', () => {
+      this.tabBindings.delete(tabName);
+      const idx = this.pages.indexOf(page);
+      if (idx !== -1) {
+        this.pages.splice(idx, 1);
+        if (this.activePageIndex >= this.pages.length) {
+          this.activePageIndex = Math.max(0, this.pages.length - 1);
+        }
+      }
+    });
+
+    this.tabBindings.set(tabName, binding);
+    return binding;
+  }
+
+  /**
+   * Get a locator from a ref string for a specific named tab.
+   * Returns null if the ref doesn't exist or is invalid.
+   */
+  getLocatorFromRefForTab(refArg: string, tabName: string): Locator | null {
+    const binding = this.tabBindings.get(tabName);
+    if (!binding) return null;
+
+    const ref = parseRef(refArg);
+    if (!ref) return null;
+
+    const refData = binding.refMap[ref];
+    if (!refData) return null;
+
+    let locator: Locator;
+    if (refData.name) {
+      locator = binding.page.getByRole(refData.role as any, { name: refData.name, exact: true });
+    } else {
+      locator = binding.page.getByRole(refData.role as any);
+    }
+
+    if (refData.nth !== undefined) {
+      locator = locator.nth(refData.nth);
+    }
+
+    return locator;
+  }
+
+  /**
+   * Get a locator for a selector or ref on a specific named tab.
+   * Tries ref resolution first, then falls back to CSS selector.
+   */
+  getLocatorForTab(selectorOrRef: string, tabName: string): Locator {
+    const locator = this.getLocatorFromRefForTab(selectorOrRef, tabName);
+    if (locator) return locator;
+
+    const binding = this.tabBindings.get(tabName);
+    if (!binding) {
+      throw new Error(`No tab binding found for tabName: ${tabName}`);
+    }
+    return binding.page.locator(selectorOrRef);
+  }
+
+  /**
+   * List all named tab bindings that are still open.
+   */
+  async listNamedTabs(): Promise<{ name: string; url: string; title: string }[]> {
+    const results: { name: string; url: string; title: string }[] = [];
+    for (const [name, binding] of this.tabBindings) {
+      if (!binding.page.isClosed()) {
+        const title = await binding.page.title().catch(() => '');
+        results.push({ name, url: binding.page.url(), title });
+      }
+    }
+    return results;
+  }
+
+  /**
+   * Close a named tab and clean up its binding.
+   */
+  async closeNamedTab(tabName: string): Promise<void> {
+    const binding = this.tabBindings.get(tabName);
+    if (!binding) return;
+
+    if (binding.cdpSession) {
+      await binding.cdpSession.detach().catch(() => {});
+    }
+
+    if (!binding.page.isClosed()) {
+      await binding.page.close();
+    }
+
+    // The 'close' event handler will remove from tabBindings and pages[],
+    // but delete explicitly in case the event already fired
+    this.tabBindings.delete(tabName);
+  }
+
+  /**
+   * Get or create a CDP session for a specific named tab.
+   */
+  async getCDPSessionForTab(tabName: string): Promise<CDPSession> {
+    const binding = this.tabBindings.get(tabName);
+    if (!binding) {
+      throw new Error(`No tab binding found for tabName: ${tabName}`);
+    }
+
+    if (binding.cdpSession) {
+      return binding.cdpSession;
+    }
+
+    binding.cdpSession = await binding.page.context().newCDPSession(binding.page);
+    return binding.cdpSession;
+  }
+
+  /**
    * Close the browser and clean up
    */
   async close(): Promise<void> {
@@ -1358,5 +1521,6 @@ export class BrowserManager {
     this.refMap = {};
     this.lastSnapshot = '';
     this.frameCallback = null;
+    this.tabBindings.clear();
   }
 }

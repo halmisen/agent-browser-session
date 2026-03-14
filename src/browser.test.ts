@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { BrowserManager } from './browser.js';
+import { BrowserManager, type TabBinding } from './browser.js';
 
 describe('BrowserManager', () => {
   let browser: BrowserManager;
@@ -631,6 +631,89 @@ describe('BrowserManager', () => {
           touchPoints: [],
         })
       ).resolves.not.toThrow();
+    });
+  });
+
+  describe('tabname isolation', () => {
+    afterEach(async () => {
+      // Clean up all named tabs after each test
+      const tabs = await browser.listNamedTabs();
+      for (const tab of tabs) {
+        await browser.closeNamedTab(tab.name);
+      }
+    });
+
+    it('should create a new tab binding on first access', async () => {
+      const binding = await browser.getOrCreateTab('test-tab-1');
+      expect(binding).toBeDefined();
+      expect(binding.page).toBeDefined();
+      expect(binding.cdpSession).toBeNull();
+      expect(binding.refMap).toEqual({});
+      expect(binding.lastSnapshot).toBe('');
+      expect(binding.activeFrame).toBeNull();
+    });
+
+    it('should return same binding on subsequent access', async () => {
+      const binding1 = await browser.getOrCreateTab('test-tab-a');
+      const binding2 = await browser.getOrCreateTab('test-tab-a');
+      expect(binding1).toBe(binding2);
+      expect(binding1.page).toBe(binding2.page);
+    });
+
+    it('should isolate different tabnames with different Page objects', async () => {
+      const bindingA = await browser.getOrCreateTab('test-tab-alpha');
+      const bindingB = await browser.getOrCreateTab('test-tab-beta');
+      expect(bindingA.page).not.toBe(bindingB.page);
+    });
+
+    it('should navigate independently per tabname', async () => {
+      const bindingA = await browser.getOrCreateTab('test-tab-nav-1');
+      const bindingB = await browser.getOrCreateTab('test-tab-nav-2');
+
+      await bindingA.page.goto('https://example.com');
+      await bindingB.page.goto('https://www.iana.org/domains/reserved');
+
+      expect(bindingA.page.url()).toContain('example.com');
+      expect(bindingB.page.url()).toContain('iana.org');
+    });
+
+    it('should list named tabs', async () => {
+      await browser.getOrCreateTab('test-tab-list-1');
+      await browser.getOrCreateTab('test-tab-list-2');
+
+      const tabs = await browser.listNamedTabs();
+      const names = tabs.map((t) => t.name);
+      expect(names).toContain('test-tab-list-1');
+      expect(names).toContain('test-tab-list-2');
+    });
+
+    it('should close a named tab', async () => {
+      await browser.getOrCreateTab('test-tab-close');
+      let tabs = await browser.listNamedTabs();
+      expect(tabs.some((t) => t.name === 'test-tab-close')).toBe(true);
+
+      await browser.closeNamedTab('test-tab-close');
+      tabs = await browser.listNamedTabs();
+      expect(tabs.some((t) => t.name === 'test-tab-close')).toBe(false);
+    });
+
+    it('should clean up binding when page is closed externally', async () => {
+      const binding = await browser.getOrCreateTab('test-tab-external');
+      const page = binding.page;
+
+      // Close the page directly (simulates external close)
+      await page.close();
+
+      // Allow event handlers to fire
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      // Binding should be cleaned up
+      const tabs = await browser.listNamedTabs();
+      expect(tabs.some((t) => t.name === 'test-tab-external')).toBe(false);
+
+      // getOrCreateTab should create a fresh binding
+      const newBinding = await browser.getOrCreateTab('test-tab-external');
+      expect(newBinding.page).not.toBe(page);
     });
   });
 });
