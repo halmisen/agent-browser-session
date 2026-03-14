@@ -1360,7 +1360,13 @@ export class BrowserManager {
       throw new Error('Browser not launched. Call launch first.');
     }
 
-    const page = await context.newPage();
+    // Reuse an existing about:blank page that isn't bound to any tabname,
+    // instead of creating a new page (avoids ghost about:blank tabs).
+    const boundPages = new Set(Array.from(this.tabBindings.values()).map((b) => b.page));
+    const reusable = this.pages.find(
+      (p) => !p.isClosed() && !boundPages.has(p) && p.url() === 'about:blank'
+    );
+    const page = reusable ?? (await context.newPage());
 
     // Backward compat: track in the shared pages array
     if (!this.pages.includes(page)) {

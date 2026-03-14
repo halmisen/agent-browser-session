@@ -121,14 +121,15 @@ describe('tabname isolation e2e', () => {
     expect((result as any).error).toContain('shared browser instance');
   });
 
-  it('should not affect default (no tabname) behavior', async () => {
-    // Navigate without tabName — should use activePageIndex
+  it('should work with ZEROTABPAGE (default when no --tabname)', async () => {
+    // CLI always sends tabName — defaults to ZEROTABPAGE when --tabname not specified
     const result = await executeCommand(
       {
         id: '1',
         action: 'navigate',
         url: 'data:text/html,<h1>Default</h1>',
-      } as Command,
+        tabName: 'ZEROTABPAGE',
+      } as any,
       browser
     );
     expect(result.success).toBe(true);
