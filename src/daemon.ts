@@ -237,47 +237,14 @@ export async function startDaemon(options?: { streamPort?: number }): Promise<vo
             });
           }
 
-          // Handle close command specially - synchronous graceful shutdown
+          // Close command is blocked — browser is a shared instance, close manually
           if (parseResult.command.action === 'close') {
-            // Block close when tabName is present — browser is shared
-            if ((parseResult.command as any).tabName) {
-              const response = errorResponse(
-                parseResult.command.id,
-                'Cannot close browser: this is a shared browser instance with named tabs. ' +
-                  'Close the browser manually when all work is done.'
-              );
-              socket.write(serializeResponse(response) + '\n');
-              continue;
-            }
-            if (!shuttingDown) {
-              shuttingDown = true;
-
-              // Stop stream server first if running
-              if (streamServer) {
-                await streamServer.stop();
-                streamServer = null;
-              }
-
-              // Close browser
-              await browser.close();
-
-              // Stop accepting new connections
-              server.close();
-
-              // Cleanup socket/pid files BEFORE responding
-              // This ensures subsequent is_daemon_running() checks fail properly
-              cleanupSocket();
-
-              // Send success response
-              const response = { id: parseResult.command.id, success: true as const, data: null };
-              socket.write(serializeResponse(response) + '\n');
-
-              // Close socket and exit
-              socket.end(() => {
-                process.exit(0);
-              });
-            }
-            return;
+            const response = errorResponse(
+              parseResult.command.id,
+              'Cannot close browser via CLI. Close the browser window manually when done.'
+            );
+            socket.write(serializeResponse(response) + '\n');
+            continue;
           }
 
           const response = await executeCommand(parseResult.command, browser);

@@ -12,34 +12,32 @@ use std::time::Duration;
 #[cfg(unix)]
 use std::os::unix::net::UnixStream;
 
-/// Get the base directory for socket/pid files.
+/// Get the base directory for all agent-browser-session data.
 /// Priority: AGENT_BROWSER_SOCKET_DIR > XDG_RUNTIME_DIR > ~/.agent-browser > tmpdir
-///
-/// Using ~/.agent-browser instead of /tmp solves:
-/// - User isolation (different users don't share sockets)
-/// - TMPDIR inconsistency (tmux/screen/VSCode may use different TMPDIR)
-pub fn get_socket_dir() -> PathBuf {
-    // 1. Explicit override
+fn get_base_dir() -> PathBuf {
     if let Ok(dir) = env::var("AGENT_BROWSER_SOCKET_DIR") {
         if !dir.is_empty() {
             return PathBuf::from(dir);
         }
     }
 
-    // 2. XDG_RUNTIME_DIR (Linux standard)
     if let Ok(runtime_dir) = env::var("XDG_RUNTIME_DIR") {
         if !runtime_dir.is_empty() {
             return PathBuf::from(runtime_dir).join("agent-browser");
         }
     }
 
-    // 3. Home directory fallback
     if let Some(home) = dirs::home_dir() {
         return home.join(".agent-browser");
     }
 
-    // 4. Last resort: temp dir
     env::temp_dir().join("agent-browser")
+}
+
+/// Get the directory for IPC system files (socket, pid, port, stream).
+/// Returns: ~/.agent-browser/sys/
+pub fn get_socket_dir() -> PathBuf {
+    get_base_dir().join("sys")
 }
 
 #[derive(Serialize)]

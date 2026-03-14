@@ -30,7 +30,7 @@ pub fn parse_flags(args: &[String]) -> Flags {
         full: false,
         headed: headed_env,
         debug: false,
-        session: env::var("AGENT_BROWSER_SESSION").unwrap_or_else(|_| "main".to_string()),
+        session: "main".to_string(),
         headers: None,
         executable_path: env::var("AGENT_BROWSER_EXECUTABLE_PATH").ok(),
         cdp: None,
@@ -58,8 +58,8 @@ pub fn parse_flags(args: &[String]) -> Flags {
             }
             "--debug" => flags.debug = true,
             "--session" => {
-                if let Some(s) = args.get(i + 1) {
-                    flags.session = s.clone();
+                // Ignored — session is always "main". Skip the value.
+                if args.get(i + 1).is_some() {
                     i += 1;
                 }
             }

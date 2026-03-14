@@ -161,7 +161,7 @@ Aliases: goto, navigate
 
 Global Options:
   --json               Output as JSON
-  --session <name>     Use specific session
+  --tabname <name>     Named tab for isolation
   --headers <json>     Set HTTP headers (scoped to this origin)
   --headed             Show browser window
 
@@ -182,7 +182,7 @@ the browser's back button.
 
 Global Options:
   --json               Output as JSON
-  --session <name>     Use specific session
+  --tabname <name>     Named tab for isolation
 
 Examples:
   agent-browser-session back
@@ -197,7 +197,7 @@ the browser's forward button.
 
 Global Options:
   --json               Output as JSON
-  --session <name>     Use specific session
+  --tabname <name>     Named tab for isolation
 
 Examples:
   agent-browser-session forward
@@ -212,7 +212,7 @@ the browser's reload button.
 
 Global Options:
   --json               Output as JSON
-  --session <name>     Use specific session
+  --tabname <name>     Named tab for isolation
 
 Examples:
   agent-browser-session reload
@@ -229,7 +229,7 @@ XPath, or an element reference from snapshot (e.g., @e1).
 
 Global Options:
   --json               Output as JSON
-  --session <name>     Use specific session
+  --tabname <name>     Named tab for isolation
 
 Examples:
   agent-browser-session click "#submit-button"
@@ -247,7 +247,7 @@ or triggering double-click handlers.
 
 Global Options:
   --json               Output as JSON
-  --session <name>     Use specific session
+  --tabname <name>     Named tab for isolation
 
 Examples:
   agent-browser-session dblclick "#editable-text"
@@ -263,7 +263,7 @@ This replaces any existing content in the field.
 
 Global Options:
   --json               Output as JSON
-  --session <name>     Use specific session
+  --tabname <name>     Named tab for isolation
 
 Examples:
   agent-browser-session fill "#email" "user@example.com"
@@ -280,7 +280,7 @@ Unlike fill, this does not clear existing content first.
 
 Global Options:
   --json               Output as JSON
-  --session <name>     Use specific session
+  --tabname <name>     Named tab for isolation
 
 Examples:
   agent-browser-session type "#search" "hello"
@@ -296,7 +296,7 @@ triggering hover states or dropdown menus.
 
 Global Options:
   --json               Output as JSON
-  --session <name>     Use specific session
+  --tabname <name>     Named tab for isolation
 
 Examples:
   agent-browser-session hover "#dropdown-trigger"
@@ -311,7 +311,7 @@ Sets keyboard focus to the specified element.
 
 Global Options:
   --json               Output as JSON
-  --session <name>     Use specific session
+  --tabname <name>     Named tab for isolation
 
 Examples:
   agent-browser-session focus "#input-field"
@@ -326,7 +326,7 @@ Checks a checkbox element. If already checked, no action is taken.
 
 Global Options:
   --json               Output as JSON
-  --session <name>     Use specific session
+  --tabname <name>     Named tab for isolation
 
 Examples:
   agent-browser-session check "#terms-checkbox"
@@ -341,7 +341,7 @@ Unchecks a checkbox element. If already unchecked, no action is taken.
 
 Global Options:
   --json               Output as JSON
-  --session <name>     Use specific session
+  --tabname <name>     Named tab for isolation
 
 Examples:
   agent-browser-session uncheck "#newsletter-opt-in"
@@ -356,7 +356,7 @@ Selects an option in a <select> dropdown by its value attribute.
 
 Global Options:
   --json               Output as JSON
-  --session <name>     Use specific session
+  --tabname <name>     Named tab for isolation
 
 Examples:
   agent-browser-session select "#country" "US"
@@ -371,7 +371,7 @@ Drags an element from source to target location.
 
 Global Options:
   --json               Output as JSON
-  --session <name>     Use specific session
+  --tabname <name>     Named tab for isolation
 
 Examples:
   agent-browser-session drag "#draggable" "#drop-zone"
@@ -386,7 +386,7 @@ Uploads one or more files to a file input element.
 
 Global Options:
   --json               Output as JSON
-  --session <name>     Use specific session
+  --tabname <name>     Named tab for isolation
 
 Examples:
   agent-browser-session upload "#file-input" ./document.pdf
@@ -414,7 +414,7 @@ Modifiers (combine with +):
 
 Global Options:
   --json               Output as JSON
-  --session <name>     Use specific session
+  --tabname <name>     Named tab for isolation
 
 Examples:
   agent-browser-session press Enter
@@ -433,7 +433,7 @@ Useful for holding modifier keys.
 
 Global Options:
   --json               Output as JSON
-  --session <name>     Use specific session
+  --tabname <name>     Named tab for isolation
 
 Examples:
   agent-browser-session keydown Shift
@@ -448,7 +448,7 @@ Releases a key that was pressed with keydown.
 
 Global Options:
   --json               Output as JSON
-  --session <name>     Use specific session
+  --tabname <name>     Named tab for isolation
 
 Examples:
   agent-browser-session keyup Shift
@@ -469,7 +469,7 @@ Arguments:
 
 Global Options:
   --json               Output as JSON
-  --session <name>     Use specific session
+  --tabname <name>     Named tab for isolation
 
 Examples:
   agent-browser-session scroll
@@ -488,7 +488,7 @@ Aliases: scrollinto
 
 Global Options:
   --json               Output as JSON
-  --session <name>     Use specific session
+  --tabname <name>     Named tab for isolation
 
 Examples:
   agent-browser-session scrollintoview "#footer"
@@ -513,7 +513,7 @@ Modes:
 
 Global Options:
   --json               Output as JSON
-  --session <name>     Use specific session
+  --tabname <name>     Named tab for isolation
 
 Examples:
   agent-browser-session wait "#loading-spinner"
@@ -538,7 +538,7 @@ Options:
 
 Global Options:
   --json               Output as JSON
-  --session <name>     Use specific session
+  --tabname <name>     Named tab for isolation
 
 Examples:
   agent-browser-session screenshot
@@ -554,7 +554,7 @@ Saves the current page as a PDF file.
 
 Global Options:
   --json               Output as JSON
-  --session <name>     Use specific session
+  --tabname <name>     Named tab for isolation
 
 Examples:
   agent-browser-session pdf ./page.pdf
@@ -579,7 +579,7 @@ Options:
 
 Global Options:
   --json               Output as JSON
-  --session <name>     Use specific session
+  --tabname <name>     Named tab for isolation
 
 Examples:
   agent-browser-session snapshot
@@ -598,7 +598,7 @@ Executes JavaScript code in the browser context and returns the result.
 
 Global Options:
   --json               Output as JSON
-  --session <name>     Use specific session
+  --tabname <name>     Named tab for isolation
 
 Examples:
   agent-browser-session eval "document.title"
@@ -618,11 +618,10 @@ Aliases: quit, exit
 
 Global Options:
   --json               Output as JSON
-  --session <name>     Use specific session
+  --tabname <name>     Named tab for isolation
 
 Examples:
   agent-browser-session close
-  agent-browser-session close --session mysession
 "##,
 
         // === Get ===
@@ -645,7 +644,7 @@ Subcommands:
 
 Global Options:
   --json               Output as JSON
-  --session <name>     Use specific session
+  --tabname <name>     Named tab for isolation
 
 Examples:
   agent-browser-session get text @e1
@@ -673,7 +672,7 @@ Subcommands:
 
 Global Options:
   --json               Output as JSON
-  --session <name>     Use specific session
+  --tabname <name>     Named tab for isolation
 
 Examples:
   agent-browser-session is visible "#modal"
@@ -710,7 +709,7 @@ Options:
 
 Global Options:
   --json               Output as JSON
-  --session <name>     Use specific session
+  --tabname <name>     Named tab for isolation
 
 Examples:
   agent-browser-session find role button click --name Submit
@@ -738,7 +737,7 @@ Subcommands:
 
 Global Options:
   --json               Output as JSON
-  --session <name>     Use specific session
+  --tabname <name>     Named tab for isolation
 
 Examples:
   agent-browser-session mouse move 100 200
@@ -769,7 +768,7 @@ Settings:
 
 Global Options:
   --json               Output as JSON
-  --session <name>     Use specific session
+  --tabname <name>     Named tab for isolation
 
 Examples:
   agent-browser-session set viewport 1920 1080
@@ -801,7 +800,7 @@ Subcommands:
 
 Global Options:
   --json               Output as JSON
-  --session <name>     Use specific session
+  --tabname <name>     Named tab for isolation
 
 Examples:
   agent-browser-session network route "**/api/*" --abort
@@ -831,7 +830,7 @@ Operations:
 
 Global Options:
   --json               Output as JSON
-  --session <name>     Use specific session
+  --tabname <name>     Named tab for isolation
 
 Examples:
   agent-browser-session storage local
@@ -856,7 +855,7 @@ Operations:
 
 Global Options:
   --json               Output as JSON
-  --session <name>     Use specific session
+  --tabname <name>     Named tab for isolation
 
 Examples:
   agent-browser-session cookies
@@ -881,7 +880,7 @@ Operations:
 
 Global Options:
   --json               Output as JSON
-  --session <name>     Use specific session
+  --tabname <name>     Named tab for isolation
 
 Examples:
   agent-browser-session tab
@@ -907,7 +906,7 @@ Operations:
 
 Global Options:
   --json               Output as JSON
-  --session <name>     Use specific session
+  --tabname <name>     Named tab for isolation
 "##,
 
         // === Frame ===
@@ -924,7 +923,7 @@ Arguments:
 
 Global Options:
   --json               Output as JSON
-  --session <name>     Use specific session
+  --tabname <name>     Named tab for isolation
 
 Examples:
   agent-browser-session frame "#embed-iframe"
@@ -946,7 +945,7 @@ Operations:
 
 Global Options:
   --json               Output as JSON
-  --session <name>     Use specific session
+  --tabname <name>     Named tab for isolation
 
 Examples:
   agent-browser-session dialog accept
@@ -968,7 +967,7 @@ Operations:
 
 Global Options:
   --json               Output as JSON
-  --session <name>     Use specific session
+  --tabname <name>     Named tab for isolation
 
 Examples:
   agent-browser-session trace start
@@ -993,7 +992,7 @@ Note:
 
 Global Options:
   --json               Output as JSON
-  --session <name>     Use specific session
+  --tabname <name>     Named tab for isolation
 
 Examples:
   agent-browser-session console
@@ -1011,7 +1010,7 @@ Options:
 
 Global Options:
   --json               Output as JSON
-  --session <name>     Use specific session
+  --tabname <name>     Named tab for isolation
 
 Examples:
   agent-browser-session errors
@@ -1028,7 +1027,7 @@ Visually highlights an element on the page for debugging.
 
 Global Options:
   --json               Output as JSON
-  --session <name>     Use specific session
+  --tabname <name>     Named tab for isolation
 
 Examples:
   agent-browser-session highlight "#target-element"
@@ -1049,7 +1048,7 @@ Operations:
 
 Global Options:
   --json               Output as JSON
-  --session <name>     Use specific session
+  --tabname <name>     Named tab for isolation
 
 Examples:
   agent-browser-session state save ./auth-state.json
@@ -1058,28 +1057,23 @@ Examples:
 
         // === Session ===
         "session" => r##"
-agent-browser-session session - Manage sessions
+agent-browser-session session - Show session info
 
 Usage: agent-browser-session session [operation]
 
-Manage isolated browser sessions. Each session has its own browser
-instance with separate cookies, storage, and state.
+Show current browser session status. Session is always "main".
+Use --tabname for client isolation within the session.
 
 Operations:
   (none)               Show current session name
   list                 List all active sessions
 
-Environment:
-  AGENT_BROWSER_SESSION    Default session name
-
 Global Options:
   --json               Output as JSON
-  --session <name>     Use specific session
 
 Examples:
   agent-browser-session session
   agent-browser-session session list
-  agent-browser-session --session test open example.com
 "##,
 
         // === Install ===
@@ -1132,7 +1126,6 @@ Core Commands:
   pdf <path>                 Save as PDF
   snapshot                   Accessibility tree with refs (for AI)
   eval <js>                  Run JavaScript
-  close                      Close browser
 
 Navigation:
   back                       Go back
@@ -1189,7 +1182,6 @@ Snapshot Options:
   -s, --selector <sel>       Scope to CSS selector
 
 Options:
-  --session <name>           Isolated session (or AGENT_BROWSER_SESSION env)
   --headers <json>           HTTP headers scoped to URL's origin (for auth)
   --executable-path <path>   Custom browser executable (or AGENT_BROWSER_EXECUTABLE_PATH)
   --extension <path>         Load browser extensions (repeatable).
@@ -1207,7 +1199,6 @@ Note: By default, agent-browser-session uses your system Chrome for better compa
 with existing browser profiles. Use --bundled to use the bundled Chrome for Testing.
 
 Environment:
-  AGENT_BROWSER_SESSION          Session name (default: "main")
   AGENT_BROWSER_HEADED           Show browser window (default: true, set "false" for headless)
   AGENT_BROWSER_EXECUTABLE_PATH  Custom browser executable path
   AGENT_BROWSER_TABNAME          Named tab (or --tabname)
