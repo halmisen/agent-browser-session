@@ -225,27 +225,10 @@ AGENT_BROWSER_NAV_DELAY_MS=2000 agent-browser-session open example.com
 - **Close disabled** — Browser is shared across tabs; close the window manually when done
 - **ZEROTABPAGE sentinel** — Commands without `--tabname` auto-assign to `ZEROTABPAGE`, ensuring all commands route through the same tab isolation path
 
-## Using with Both Versions
-
-```bash
-# Quick scraping (upstream, headless, ephemeral)
-agent-browser open example.com
-agent-browser snapshot -i
-agent-browser close
-
-# Login-required sites (this fork, headed, persistent)
-agent-browser-session open https://github.com/settings
-# Already logged in from previous session!
-
-# Multi-agent parallel browsing (this fork)
-agent-browser-session --tabname agent-1 open https://reddit.com &
-agent-browser-session --tabname agent-2 open https://news.ycombinator.com &
-```
-
 ## Claude Code Skill
 
 ```bash
-cp -r skills/agent-browser ~/.claude/skills/
+cp -r skills/agent-browser-session ~/.claude/skills/
 ```
 
 ## License
