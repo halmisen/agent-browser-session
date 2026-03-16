@@ -17,13 +17,35 @@ A fork of [vercel-labs/agent-browser](https://github.com/vercel-labs/agent-brows
 
 ## Installation
 
+### Quick Install (recommended)
+
+```bash
+# Install CLI via Homebrew
+brew tap BUNotesAI/agent-browser-session
+brew install agent-browser-session
+
+# Install Claude Code skill
+agent-browser-session install-skills
+
+# Install browser (first time only)
+agent-browser-session install
+```
+
+### Install from Source
+
 ```bash
 git clone https://github.com/BUNotesAI/agent-browser-session
 cd agent-browser-session
-pnpm install
-pnpm build
-pnpm build:native   # Requires Rust (https://rustup.rs)
-pnpm link --global   # Makes agent-browser-session available globally
+pnpm install && pnpm build
+
+# Build native CLI
+cargo build --manifest-path cli/Cargo.toml --release
+cp cli/target/release/agent-browser-session bin/agent-browser-session-$(uname -s | tr '[:upper:]' '[:lower:]')-$(uname -m | sed 's/x86_64/x64/;s/aarch64/arm64/')
+chmod +x bin/agent-browser-session-*
+pnpm link --global
+
+# Install Claude Code skill (manual)
+cp -r skills/agent-browser-session ~/.claude/skills/
 ```
 
 ## Quick Start
@@ -225,9 +247,23 @@ AGENT_BROWSER_NAV_DELAY_MS=2000 agent-browser-session open example.com
 - **Close disabled** — Browser is shared across tabs; close the window manually when done
 - **ZEROTABPAGE sentinel** — Commands without `--tabname` auto-assign to `ZEROTABPAGE`, ensuring all commands route through the same tab isolation path
 
+## Daemon Management
+
+```bash
+agent-browser-session kill    # Kill all daemons + close browser
+```
+
+> **Warning:** For manual use only — do NOT call from agents. The browser is shared across tabnames; killing it interrupts all connected agents.
+
+Use `kill` when you need to restart the daemon after a code update, free up resources, or recover from a stuck daemon.
+
 ## Claude Code Skill
 
 ```bash
+# Via CLI (recommended)
+agent-browser-session install-skills
+
+# Or manually
 cp -r skills/agent-browser-session ~/.claude/skills/
 ```
 

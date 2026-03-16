@@ -1113,6 +1113,24 @@ Examples:
   agent-browser-session install --with-deps
 "##,
 
+        // === Install Skills ===
+        "install-skills" => r##"
+agent-browser-session install-skills - Install Claude Code skill
+
+Usage: agent-browser-session install-skills
+
+Copies the agent-browser-session skill (SKILL.md) to
+~/.claude/skills/agent-browser-session/ for use with Claude Code.
+
+The skill file is found relative to the binary location.
+You can override the search path with the AGENT_BROWSER_SKILLS_DIR
+environment variable.
+
+Examples:
+  agent-browser-session install-skills
+  AGENT_BROWSER_SKILLS_DIR=/path/to/skills agent-browser-session install-skills
+"##,
+
         _ => return false,
     };
     println!("{}", help.trim());
@@ -1195,6 +1213,7 @@ Sessions:
 Setup:
   install                    Install browser binaries
   install --with-deps        Also install system dependencies (Linux)
+  install-skills             Install Claude Code skill to ~/.claude/skills/
   kill                       Kill all daemons + browser (manual use only)
 
 Snapshot Options:

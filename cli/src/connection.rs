@@ -206,11 +206,21 @@ pub fn ensure_daemon(
     let exe_path = env::current_exe().map_err(|e| e.to_string())?;
     let exe_dir = exe_path.parent().unwrap();
 
-    let daemon_paths = [
+    // Build list of candidate paths for daemon.js
+    let mut daemon_paths: Vec<PathBuf> = Vec::new();
+
+    // Check AGENT_BROWSER_DAEMON_DIR env var first (for Homebrew / custom installs)
+    if let Ok(dir) = env::var("AGENT_BROWSER_DAEMON_DIR") {
+        if !dir.is_empty() {
+            daemon_paths.push(PathBuf::from(&dir).join("daemon.js"));
+        }
+    }
+
+    daemon_paths.extend([
         exe_dir.join("daemon.js"),
         exe_dir.join("../dist/daemon.js"),
         PathBuf::from("dist/daemon.js"),
-    ];
+    ]);
 
     let daemon_path = daemon_paths
         .iter()

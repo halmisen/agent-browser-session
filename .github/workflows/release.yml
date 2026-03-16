@@ -1,0 +1,223 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - target: aarch64-apple-darwin
+            os: macos-latest
+            artifact: agent-browser-session-darwin-arm64
+          - target: x86_64-apple-darwin
+            os: macos-latest
+            artifact: agent-browser-session-darwin-x64
+          - target: aarch64-unknown-linux-gnu
+            os: ubuntu-latest
+            artifact: agent-browser-session-linux-arm64
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+            artifact: agent-browser-session-linux-x64
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        run: |
+          rustup toolchain install stable --profile minimal
+          rustup target add ${{ matrix.target }}
+
+      - name: Install cross-compilation tools (Linux arm64)
+        if: matrix.target == 'aarch64-unknown-linux-gnu'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-aarch64-linux-gnu
+
+      - name: Cache Cargo dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            cli/target/
+          key: ${{ runner.os }}-cargo-${{ matrix.target }}-${{ hashFiles('cli/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-${{ matrix.target }}-
+
+      - name: Build Rust CLI
+        env:
+          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
+        run: cargo build --release --manifest-path cli/Cargo.toml --target ${{ matrix.target }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install and build Node.js daemon
+        run: |
+          npm ci --ignore-scripts
+          npx tsc
+          # Remove dev dependencies — only ship production deps in tarball
+          npm prune --production
+
+      - name: Package tarball
+        run: |
+          mkdir -p staging/${{ matrix.artifact }}/bin
+          mkdir -p staging/${{ matrix.artifact }}/dist
+
+          # Copy Rust binary
+          cp cli/target/${{ matrix.target }}/release/agent-browser-session staging/${{ matrix.artifact }}/bin/
+
+          # Copy Node.js daemon files
+          cp -r dist/* staging/${{ matrix.artifact }}/dist/
+          cp -r node_modules staging/${{ matrix.artifact }}/
+          cp package.json staging/${{ matrix.artifact }}/
+
+          # Create tarball
+          cd staging
+          tar czf ../${{ matrix.artifact }}.tar.gz ${{ matrix.artifact }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: ${{ matrix.artifact }}.tar.gz
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Create Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Generate SHA256 checksums
+          cd artifacts
+          sha256sum *.tar.gz > checksums.txt
+          cat checksums.txt
+          cd ..
+
+          gh release create ${{ github.ref_name }} \
+            artifacts/*.tar.gz \
+            artifacts/checksums.txt \
+            --title "${{ github.ref_name }}" \
+            --generate-notes
+
+      - name: Update Homebrew tap
+        env:
+          GH_TOKEN: ${{ secrets.TAP_TOKEN }}
+        run: |
+          # Skip tap update if TAP_TOKEN is not set
+          if [ -z "$GH_TOKEN" ]; then
+            echo "TAP_TOKEN not set, skipping tap update"
+            exit 0
+          fi
+
+          TAG=${{ github.ref_name }}
+          VERSION=${TAG#v}
+
+          # Get SHA256 for each platform
+          cd artifacts
+          SHA_DARWIN_ARM64=$(sha256sum agent-browser-session-darwin-arm64.tar.gz | awk '{print $1}')
+          SHA_DARWIN_X64=$(sha256sum agent-browser-session-darwin-x64.tar.gz | awk '{print $1}')
+          SHA_LINUX_X64=$(sha256sum agent-browser-session-linux-x64.tar.gz | awk '{print $1}')
+          SHA_LINUX_ARM64=$(sha256sum agent-browser-session-linux-arm64.tar.gz | awk '{print $1}')
+          cd ..
+
+          # Clone tap repo
+          git clone https://x-access-token:${GH_TOKEN}@github.com/BUNotesAI/homebrew-agent-browser-session.git tap
+          cd tap
+
+          cat > Formula/agent-browser-session.rb << 'FORMULA'
+          class AgentBrowserSession < Formula
+            desc "Headless browser automation CLI for AI agents"
+            homepage "https://github.com/BUNotesAI/agent-browser-session"
+            version "PLACEHOLDER_VERSION"
+
+            depends_on "node"
+
+            on_macos do
+              if Hardware::CPU.arm?
+                url "PLACEHOLDER_URL_DARWIN_ARM64"
+                sha256 "PLACEHOLDER_SHA_DARWIN_ARM64"
+              elsif Hardware::CPU.intel?
+                url "PLACEHOLDER_URL_DARWIN_X64"
+                sha256 "PLACEHOLDER_SHA_DARWIN_X64"
+              end
+            end
+
+            on_linux do
+              if Hardware::CPU.arm?
+                url "PLACEHOLDER_URL_LINUX_ARM64"
+                sha256 "PLACEHOLDER_SHA_LINUX_ARM64"
+              elsif Hardware::CPU.intel?
+                url "PLACEHOLDER_URL_LINUX_X64"
+                sha256 "PLACEHOLDER_SHA_LINUX_X64"
+              end
+            end
+
+            def install
+              libexec.install "dist"
+              libexec.install "node_modules"
+              libexec.install "package.json"
+              libexec.install "bin/agent-browser-session"
+
+              # Wrapper script sets AGENT_BROWSER_DAEMON_DIR so the binary finds daemon.js
+              (bin/"agent-browser-session").write <<~SH
+                #!/bin/sh
+                export AGENT_BROWSER_DAEMON_DIR="#{libexec}/dist"
+                exec "#{libexec}/agent-browser-session" "$@"
+              SH
+              chmod 0755, bin/"agent-browser-session"
+            end
+
+            def post_install
+              system "npx", "--prefix", libexec.to_s, "patchright", "install", "chromium"
+            end
+
+            test do
+              assert_match "agent-browser-session", shell_output("#{bin}/agent-browser-session --help")
+            end
+          end
+          FORMULA
+
+          # Remove leading indentation from heredoc
+          sed -i 's/^          //' Formula/agent-browser-session.rb
+
+          # Replace placeholders with actual values
+          sed -i "s|PLACEHOLDER_VERSION|${VERSION}|g" Formula/agent-browser-session.rb
+          sed -i "s|PLACEHOLDER_URL_DARWIN_ARM64|https://github.com/BUNotesAI/agent-browser-session/releases/download/${TAG}/agent-browser-session-darwin-arm64.tar.gz|g" Formula/agent-browser-session.rb
+          sed -i "s|PLACEHOLDER_URL_DARWIN_X64|https://github.com/BUNotesAI/agent-browser-session/releases/download/${TAG}/agent-browser-session-darwin-x64.tar.gz|g" Formula/agent-browser-session.rb
+          sed -i "s|PLACEHOLDER_URL_LINUX_ARM64|https://github.com/BUNotesAI/agent-browser-session/releases/download/${TAG}/agent-browser-session-linux-arm64.tar.gz|g" Formula/agent-browser-session.rb
+          sed -i "s|PLACEHOLDER_URL_LINUX_X64|https://github.com/BUNotesAI/agent-browser-session/releases/download/${TAG}/agent-browser-session-linux-x64.tar.gz|g" Formula/agent-browser-session.rb
+          sed -i "s|PLACEHOLDER_SHA_DARWIN_ARM64|${SHA_DARWIN_ARM64}|g" Formula/agent-browser-session.rb
+          sed -i "s|PLACEHOLDER_SHA_DARWIN_X64|${SHA_DARWIN_X64}|g" Formula/agent-browser-session.rb
+          sed -i "s|PLACEHOLDER_SHA_LINUX_ARM64|${SHA_LINUX_ARM64}|g" Formula/agent-browser-session.rb
+          sed -i "s|PLACEHOLDER_SHA_LINUX_X64|${SHA_LINUX_X64}|g" Formula/agent-browser-session.rb
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Formula/agent-browser-session.rb
+          git commit -m "Update agent-browser-session to ${VERSION}"
+          git push
