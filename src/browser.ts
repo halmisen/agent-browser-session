@@ -781,12 +781,16 @@ export class BrowserManager {
       throw new Error(`Unsupported browser: ${browserType}. Patchright supports Chromium only.`);
     }
     const launcher = chromium;
-    const viewport = options.viewport ?? { width: 1280, height: 720 };
-
     // Resolve headless mode: default headed, allow explicit override
     // Test mode (NODE_ENV=test) always allows headless for CI/CD
     const isTestMode = process.env.NODE_ENV === 'test';
     const headless = isTestMode ? (options.headless ?? true) : (options.headless ?? false);
+
+    // In headed mode, default to null viewport so content follows window resize.
+    // In headless mode, use fixed viewport since there's no window to resize.
+    // Explicit viewport option always takes priority.
+    const defaultViewport = headless ? { width: 1280, height: 720 } : null;
+    const viewport = options.viewport !== undefined ? options.viewport : defaultViewport;
 
     // Resolve userDataDir - use default if not provided, scoped by headed/headless
     const userDataDir = options.userDataDir ?? this.getDefaultUserDataDir(headless);
@@ -859,6 +863,9 @@ export class BrowserManager {
       }
     };
 
+    // When viewport is null (headed mode), set initial window size via Chrome arg
+    const windowSizeArg = viewport === null ? '--window-size=1280,720' : undefined;
+
     let context: BrowserContext;
     if (hasExtensions) {
       // Extensions mode: use launchPersistentContext with extension loading
@@ -873,6 +880,7 @@ export class BrowserManager {
             `--load-extension=${extPaths}`,
             '--disable-blink-features=AutomationControlled',
             '--test-type', // Suppress warning banners
+            ...(windowSizeArg ? [windowSizeArg] : []),
           ],
           // Hide "Chrome is being controlled by automated test software" infobar
           ignoreDefaultArgs: ['--enable-automation'],
@@ -896,6 +904,7 @@ export class BrowserManager {
           args: [
             '--disable-blink-features=AutomationControlled',
             '--test-type', // Suppress warning banners
+            ...(windowSizeArg ? [windowSizeArg] : []),
           ],
         })
       );
