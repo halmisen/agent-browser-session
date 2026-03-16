@@ -26,10 +26,9 @@ brew install agent-browser-session
 
 # Install Claude Code skill
 agent-browser-session install-skills
-
-# Install browser (first time only)
-agent-browser-session install
 ```
+
+> Uses your system Chrome by default. If Chrome is not installed, run `agent-browser-session install` to download a bundled browser.
 
 ### Install from Source
 
