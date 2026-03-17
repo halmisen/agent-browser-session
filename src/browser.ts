@@ -70,6 +70,9 @@ interface PageError {
   timestamp: number;
 }
 
+// Maximum number of tracked items to prevent unbounded memory growth
+const MAX_TRACKED_ITEMS = 1000;
+
 /**
  * Manages the Patchright browser lifecycle with multiple tabs/windows
  */
@@ -91,6 +94,11 @@ export class BrowserManager {
   private refMap: RefMap = {};
   private lastSnapshot: string = '';
   private scopedHeaderRoutes: Map<string, (route: Route) => Promise<void>> = new Map();
+
+  // Guards against duplicate listener registration
+  private isRequestTrackingActive: boolean = false;
+  private isConsoleTrackingActive: boolean = false;
+  private isErrorTrackingActive: boolean = false;
 
   // CDP session for screencast and input injection
   private cdpSession: CDPSession | null = null;
@@ -163,6 +171,16 @@ export class BrowserManager {
     this.cdpSession = null;
     this.screencastActive = false;
     this.tabBindings.clear();
+    // Clear accumulated tracking data to prevent stale data after re-launch
+    this.trackedRequests = [];
+    this.consoleMessages = [];
+    this.pageErrors = [];
+    this.routes.clear();
+    this.scopedHeaderRoutes.clear();
+    this.dialogHandler = null;
+    this.isRequestTrackingActive = false;
+    this.isConsoleTrackingActive = false;
+    this.isErrorTrackingActive = false;
   }
 
   /**
@@ -373,6 +391,8 @@ export class BrowserManager {
    * Start tracking requests
    */
   startRequestTracking(): void {
+    if (this.isRequestTrackingActive) return;
+    this.isRequestTrackingActive = true;
     const page = this.getPage();
     page.on('request', (request: Request) => {
       this.trackedRequests.push({
@@ -382,6 +402,9 @@ export class BrowserManager {
         timestamp: Date.now(),
         resourceType: request.resourceType(),
       });
+      if (this.trackedRequests.length > MAX_TRACKED_ITEMS) {
+        this.trackedRequests = this.trackedRequests.slice(-MAX_TRACKED_ITEMS);
+      }
     });
   }
 
@@ -509,6 +532,8 @@ export class BrowserManager {
    * Start console message tracking
    */
   startConsoleTracking(): void {
+    if (this.isConsoleTrackingActive) return;
+    this.isConsoleTrackingActive = true;
     const page = this.getPage();
     page.on('console', (msg) => {
       this.consoleMessages.push({
@@ -516,6 +541,9 @@ export class BrowserManager {
         text: msg.text(),
         timestamp: Date.now(),
       });
+      if (this.consoleMessages.length > MAX_TRACKED_ITEMS) {
+        this.consoleMessages = this.consoleMessages.slice(-MAX_TRACKED_ITEMS);
+      }
     });
   }
 
@@ -537,12 +565,17 @@ export class BrowserManager {
    * Start error tracking
    */
   startErrorTracking(): void {
+    if (this.isErrorTrackingActive) return;
+    this.isErrorTrackingActive = true;
     const page = this.getPage();
     page.on('pageerror', (error) => {
       this.pageErrors.push({
         message: error.message,
         timestamp: Date.now(),
       });
+      if (this.pageErrors.length > MAX_TRACKED_ITEMS) {
+        this.pageErrors = this.pageErrors.slice(-MAX_TRACKED_ITEMS);
+      }
     });
   }
 
@@ -1015,6 +1048,9 @@ export class BrowserManager {
         text: msg.text(),
         timestamp: Date.now(),
       });
+      if (this.consoleMessages.length > MAX_TRACKED_ITEMS) {
+        this.consoleMessages = this.consoleMessages.slice(-MAX_TRACKED_ITEMS);
+      }
     });
 
     page.on('pageerror', (error) => {
@@ -1022,6 +1058,9 @@ export class BrowserManager {
         message: error.message,
         timestamp: Date.now(),
       });
+      if (this.pageErrors.length > MAX_TRACKED_ITEMS) {
+        this.pageErrors = this.pageErrors.slice(-MAX_TRACKED_ITEMS);
+      }
     });
 
     page.on('close', () => {
@@ -1553,5 +1592,15 @@ export class BrowserManager {
     this.lastSnapshot = '';
     this.frameCallback = null;
     this.tabBindings.clear();
+    // Clear accumulated tracking data
+    this.trackedRequests = [];
+    this.consoleMessages = [];
+    this.pageErrors = [];
+    this.routes.clear();
+    this.scopedHeaderRoutes.clear();
+    this.dialogHandler = null;
+    this.isRequestTrackingActive = false;
+    this.isConsoleTrackingActive = false;
+    this.isErrorTrackingActive = false;
   }
 }
