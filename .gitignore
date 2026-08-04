@@ -67,3 +67,15 @@ docs/package-lock.json
 # next
 .next/
 out/
+
+# Browser session state — Playwright storageState files hold live login cookies.
+# This repo is public; these must never be committed.
+state/
+*-auth.json
+*storageState*.json
+
+# Chrome user-data directories created by browser automation. These contain
+# Login Data (saved passwords), Cookies, History, Web Data and trusted_vault.pb.
+profiles/
+user-data-dir/
+*-profile/
